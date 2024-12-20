@@ -1,7 +1,7 @@
 mod command;
 
-use command::SimpleCommand;
 use command::Pipeline;
+use command::SimpleCommand;
 // use std::io;
 
 // fn main() {
@@ -13,7 +13,6 @@ use command::Pipeline;
 //     let command = command.trim_end();
 //     println!("executing {command} ... ");
 // }
-
 
 fn main() {
     // let args = vec![String::from("arg1"), String::from("arg2")];
@@ -63,5 +62,12 @@ fn main() {
     pipeline.pop_front();
     println!("Is empty: {}", pipeline.is_empty());
     println!("Length: {}", pipeline.length());
-    
+    let mut pipeline = Pipeline::new();
+    for i in 0..257 {
+        let mut cmd = SimpleCommand::new();
+        cmd.push_back(format!("gtk-fuse{}", i));
+        pipeline.push_back(cmd);
+    }
+    pipeline.set_wait(false);
+    pipeline.dump();
 }

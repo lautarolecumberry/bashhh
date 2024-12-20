@@ -8,6 +8,14 @@ What to do:
     - ✅ simple command
     - ✅ pipeline
 2. add tests
+    - ✅ pipeline
+    - simple command
 3. Execute basic commands
 4. Execute cd
 5. Execute pipes
+
+```
+cargo run
+cargo test
+cargo fmt
+```

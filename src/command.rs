@@ -1,5 +1,4 @@
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct SimpleCommand {
     args: Vec<String>,
     out: String,
@@ -8,7 +7,11 @@ pub struct SimpleCommand {
 
 impl SimpleCommand {
     pub fn new() -> SimpleCommand {
-        SimpleCommand { args: Vec::new(), out: String::new(), input: String::new() }
+        SimpleCommand {
+            args: Vec::new(),
+            out: String::new(),
+            input: String::new(),
+        }
     }
 
     pub fn push_back(&mut self, arg: String) {
@@ -16,7 +19,7 @@ impl SimpleCommand {
     }
 
     pub fn pop_front(&mut self) -> Option<String> {
-        return self.args.pop()
+        return self.args.pop();
     }
 
     pub fn set_redir_in(&mut self, input: String) {
@@ -75,7 +78,10 @@ pub struct Pipeline {
 
 impl Pipeline {
     pub fn new() -> Pipeline {
-        Pipeline { commands: Vec::new(), should_wait: true }
+        Pipeline {
+            commands: Vec::new(),
+            should_wait: true,
+        }
     }
 
     pub fn push_back(&mut self, command: SimpleCommand) {
@@ -83,7 +89,7 @@ impl Pipeline {
     }
 
     pub fn pop_front(&mut self) -> Option<SimpleCommand> {
-        return self.commands.pop()
+        return self.commands.pop();
     }
 
     pub fn set_wait(&mut self, wait: bool) {
@@ -108,13 +114,16 @@ impl Pipeline {
 
     pub fn to_string(&self) -> String {
         let mut result = String::new();
+        if self.commands.is_empty() {
+            return result;
+        }
         for command in &self.commands {
             result.push_str(&command.to_string());
             if command != self.commands.last().unwrap() {
                 result.push_str(" | ");
             }
         }
-        if self.should_wait {
+        if !self.should_wait && !self.commands.is_empty() {
             result.push_str(" &");
         }
         result
@@ -123,5 +132,179 @@ impl Pipeline {
     pub fn dump(&self) {
         println!("Pipeline `{}`", self.to_string());
         println!();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_push_back_null() {
+        let mut pipeline = Pipeline::new();
+        pipeline.push_back(SimpleCommand::new());
+    }
+
+    #[test]
+    fn test_pop_front_null() {
+        let mut pipeline = Pipeline::new();
+        pipeline.pop_front();
+    }
+
+    #[test]
+    fn test_pop_front_empty() {
+        let mut pipeline = Pipeline::new();
+        pipeline.pop_front();
+    }
+
+    #[test]
+    fn test_set_wait_null() {
+        let mut pipeline = Pipeline::new();
+        pipeline.set_wait(false);
+    }
+
+    #[test]
+    fn test_is_empty_null() {
+        let pipeline = Pipeline::new();
+        assert!(pipeline.is_empty());
+    }
+
+    #[test]
+    fn test_length_null() {
+        let pipeline = Pipeline::new();
+        assert_eq!(pipeline.length(), 0);
+    }
+
+    #[test]
+    fn test_front_null() {
+        let pipeline = Pipeline::new();
+        assert!(pipeline.front().is_none());
+    }
+
+    #[test]
+    fn test_front_empty() {
+        let pipeline = Pipeline::new();
+        assert!(pipeline.front().is_none());
+    }
+
+    #[test]
+    fn test_get_wait_null() {
+        let pipeline = Pipeline::new();
+        assert!(pipeline.get_wait());
+    }
+
+    #[test]
+    fn test_to_string_null() {
+        let pipeline = Pipeline::new();
+        assert_eq!(pipeline.to_string(), "");
+    }
+
+    #[test]
+    fn test_adding_emptying() {
+        let mut pipeline = Pipeline::new();
+        assert!(pipeline.is_empty());
+        for _ in 0..257 {
+            pipeline.push_back(SimpleCommand::new());
+            assert!(!pipeline.is_empty());
+        }
+        for _ in 0..257 {
+            assert!(!pipeline.is_empty());
+            pipeline.pop_front();
+        }
+        assert!(pipeline.is_empty());
+    }
+
+    #[test]
+    fn test_adding_emptying_length() {
+        let mut pipeline = Pipeline::new();
+        for i in 0..257 {
+            assert_eq!(pipeline.length(), i);
+            pipeline.push_back(SimpleCommand::new());
+        }
+        for i in (0..257).rev() {
+            assert_eq!(pipeline.length(), i + 1);
+            pipeline.pop_front();
+        }
+        assert_eq!(pipeline.length(), 0);
+    }
+
+    #[test]
+    fn test_fifo() {
+        let mut pipeline = Pipeline::new();
+        let mut commands = Vec::new();
+        for _ in 0..257 {
+            let cmd = SimpleCommand::new();
+            commands.push(cmd);
+        }
+        for cmd in &commands {
+            pipeline.push_back(cmd.clone());
+        }
+        for cmd in &commands {
+            assert_eq!(pipeline.front().unwrap(), cmd);
+            pipeline.pop_front();
+        }
+    }
+
+    #[test]
+    fn test_front_idempotent() {
+        let mut pipeline = Pipeline::new();
+        let cmd = SimpleCommand::new();
+        pipeline.push_back(cmd.clone());
+        for _ in 0..257 {
+            assert_eq!(pipeline.front().unwrap(), &cmd);
+        }
+    }
+
+    #[test]
+    fn test_front_is_back() {
+        let mut pipeline = Pipeline::new();
+        let cmd = SimpleCommand::new();
+        pipeline.push_back(cmd.clone());
+        assert_eq!(pipeline.front().unwrap(), &cmd);
+    }
+
+    #[test]
+    fn test_front_is_not_back() {
+        let mut pipeline = Pipeline::new();
+        let mut cmd0 = SimpleCommand::new();
+        cmd0.push_back(String::from("123"));
+        let mut cmd1 = SimpleCommand::new();
+        cmd1.push_back(String::from("456"));
+        pipeline.push_back(cmd0.clone());
+        pipeline.push_back(cmd1.clone());
+        assert_ne!(pipeline.front().unwrap(), &cmd1);
+    }
+
+    #[test]
+    fn test_wait() {
+        let mut pipeline = Pipeline::new();
+        pipeline.set_wait(true);
+        assert!(pipeline.get_wait());
+        pipeline.set_wait(false);
+        assert!(!pipeline.get_wait());
+    }
+
+    #[test]
+    fn test_to_string_empty() {
+        let pipeline = Pipeline::new();
+        assert_eq!(pipeline.to_string(), "");
+    }
+
+    #[test]
+    fn test_to_string() {
+        // TODO: the bug here is that if all the commands are equal,
+        // it detects the all the commands as the last one so it
+        // doesn't add the pipe between them.
+        let mut pipeline = Pipeline::new();
+        for _ in 0..257 {
+            let mut cmd = SimpleCommand::new();
+            cmd.push_back("gtk-fuse".to_string());
+            pipeline.push_back(cmd);
+        }
+        pipeline.set_wait(false);
+        let result = pipeline.to_string();
+        let pipe_count = result.matches('|').count();
+        assert_eq!(pipe_count, 256);
+        assert!(result.ends_with('&'));
     }
 }
