@@ -9,7 +9,7 @@ What to do:
     - ✅ pipeline
 2. add tests
     - ✅ pipeline
-    - simple command
+    - 🟡 simple command
 3. Execute basic commands
 4. Execute cd
 5. Execute pipes

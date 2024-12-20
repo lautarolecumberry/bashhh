@@ -71,6 +71,230 @@ impl SimpleCommand {
     }
 }
 
+#[cfg(test)]
+mod simple_command_tests {
+    use super::*;
+
+    // #[test]
+    // fn test_destroy_null() {
+    //     scommand_destroy (NULL);
+    // }
+
+    // #[test]
+    // fn test_push_back_null() {
+    //     scommand_push_back (NULL, bfromcstr ("123"));
+    // }
+
+    // #[test]
+    // fn test_push_back_argument_null() {
+    //     scmd = scommand_new ();
+    //     scommand_push_back (scmd, NULL);
+    //     scommand_destroy (scmd); scmd = NULL;
+    // }
+
+    // #[test]
+    // fn test_pop_front_null() {
+    //     scommand_push_back (NULL, bfromcstr ("123"));
+    // }
+
+    // #[test]
+    // fn test_pop_front_empty() {
+    //     scommand_push_back (NULL, bfromcstr ("123"));
+    // }
+
+    // #[test]
+    // fn test_set_redir_in_null() {
+    //     scommand_push_back (NULL, bfromcstr ("123"));
+    // }
+
+    // #[test]
+    // fn test_set_redir_out_null() {
+    //     scommand_push_back (NULL, bfromcstr ("123"));
+    // }
+
+    // #[test]
+    // fn test_is_empty_null() {
+    //     scommand_push_back (NULL, bfromcstr ("123"));
+    // }
+
+    #[test]
+    fn test_length_null() {
+        let command = SimpleCommand::new();
+        assert_eq!(command.length(), 0);
+    }
+
+    #[test]
+    fn test_front_null() {
+        let command = SimpleCommand::new();
+        assert!(command.front().is_none());
+    }
+
+    // #[test]
+    // fn test_front_empty() {
+    //     scmd = scommand_new();
+    //     scommand_front (scmd);
+    //     scommand_destroy(scmd); scmd = NULL;
+    // }
+
+    // #[test]
+    // fn test_get_redir_in_null() {
+    //     scommand_get_redir_in (NULL);
+    // }
+
+    // #[test]
+    // fn test_get_redir_out_null() {
+    //     scommand_get_redir_out (NULL);
+    // }
+
+    // #[test]
+    // fn test_to_string_null() {
+    //     scommand_to_string (NULL);
+    // }
+
+    #[test]
+    fn test_new_is_empty() {
+        let scmd = SimpleCommand::new();
+        // Un comando recién creado debe ser vacío
+        assert!(scmd.is_empty());
+        assert_eq!(scmd.length(), 0);
+    }
+
+    // is_empty sea acorde a lo que agregamos y quitamos
+    #[test]
+    fn test_adding_emptying() {
+        let mut scmd = SimpleCommand::new();
+        for i in 0..257 {
+            assert_eq!(i == 0, scmd.is_empty());
+            scmd.push_back("123".to_string());
+        }
+        for _ in 0..257 {
+            assert!(!scmd.is_empty());
+            scmd.pop_front();
+        }
+        assert!(scmd.is_empty());
+    }
+
+    #[test]
+    fn test_adding_emptying_length() {
+        let mut scmd = SimpleCommand::new();
+        for i in 0..257 {
+            assert_eq!(i, scmd.length());
+            scmd.push_back("123".to_string());
+        }
+        for i in (1..=257).rev() {
+            assert_eq!(i, scmd.length());
+            scmd.pop_front();
+        }
+        assert_eq!(scmd.length(), 0);
+    }
+
+    #[test]
+    fn test_fifo() {
+        let mut scmd = SimpleCommand::new();
+        let mut strings = Vec::new();
+        for i in 0..257 {
+            strings.push(i.to_string());
+        }
+        for s in &strings {
+            scmd.push_back(s.clone());
+        }
+        for s in &strings {
+            assert_eq!(scmd.front().unwrap(), s);
+            scmd.pop_front();
+        }
+    }
+
+    #[test]
+    fn test_front_idempotent() {
+        let mut scmd = SimpleCommand::new();
+        scmd.push_back("123".to_string());
+        for _ in 0..257 {
+            assert_eq!(scmd.front().unwrap(), "123");
+        }
+    }
+
+    #[test]
+    fn test_front_is_back() {
+        let mut scmd = SimpleCommand::new();
+        scmd.push_back("123".to_string());
+        assert_eq!(scmd.front().unwrap(), "123");
+    }
+
+    #[test]
+    fn test_front_is_not_back() {
+        let mut scmd = SimpleCommand::new();
+        scmd.push_back("123".to_string());
+        scmd.push_back("456".to_string());
+        assert_ne!(scmd.front().unwrap(), "456");
+    }
+
+    #[test]
+    fn test_redir() {
+        let mut scmd = SimpleCommand::new();
+        scmd.set_redir_in("123".to_string());
+        scmd.set_redir_out("456".to_string());
+        assert_ne!(scmd.get_redir_in(), scmd.get_redir_out());
+        scmd.set_redir_out("123".to_string());
+        assert_eq!(scmd.get_redir_in(), scmd.get_redir_out());
+    }
+
+    #[test]
+    fn test_independent_redirs() {
+        let mut scmd = SimpleCommand::new();
+        scmd.set_redir_in("123".to_string());
+        assert_eq!(scmd.get_redir_in(), "123");
+        assert_eq!(scmd.get_redir_out(), "");
+        scmd.set_redir_in(String::new());
+        assert_eq!(scmd.get_redir_in(), "");
+        assert_eq!(scmd.get_redir_out(), "");
+        scmd.set_redir_out("456".to_string());
+        assert_eq!(scmd.get_redir_in(), "");
+        assert_eq!(scmd.get_redir_out(), "456");
+        scmd.set_redir_in("123".to_string());
+        assert_eq!(scmd.get_redir_in(), "123");
+        assert_eq!(scmd.get_redir_out(), "456");
+    }
+
+    #[test]
+    fn test_to_string_empty() {
+        let scmd = SimpleCommand::new();
+        assert_eq!(scmd.to_string(), " <  > ");
+    }
+
+    #[test]
+    fn test_to_string() {
+        let mut scmd = SimpleCommand::new();
+        let mut strings = Vec::new();
+        for i in 0..257 {
+            strings.push(i.to_string());
+        }
+        for i in 0..255 {
+            scmd.push_back(strings[i].clone());
+        }
+        scmd.set_redir_in(strings[255].clone());
+        scmd.set_redir_out(strings[256].clone());
+        let result = scmd.to_string();
+        let mut last_pos = 0;
+        for i in 0..257 {
+            if i < 255 {
+                let pos = result.find(&strings[i]).unwrap();
+                assert!(pos >= last_pos);
+                last_pos = pos;
+            } else if i == 255 {
+                let pos = result.find(&strings[i]).unwrap();
+                assert!(pos >= 0);
+                let redir_pos = result.find('<').unwrap();
+                assert!(pos > redir_pos);
+            } else {
+                let pos = result.find(&strings[i]).unwrap();
+                assert!(pos >= 0);
+                let redir_pos = result.find('>').unwrap();
+                assert!(pos > redir_pos);
+            }
+        }
+    }
+}
+
 pub struct Pipeline {
     commands: Vec<SimpleCommand>,
     should_wait: bool,
@@ -136,7 +360,7 @@ impl Pipeline {
 }
 
 #[cfg(test)]
-mod tests {
+mod pipeline_tests {
     use super::*;
 
     #[test]
