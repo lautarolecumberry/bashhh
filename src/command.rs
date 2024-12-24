@@ -82,22 +82,63 @@ impl SimpleCommand {
         self.args.iter().map(|s| s.as_str()).collect()
     }
 
-    pub fn execute(&mut self) {
-        println!("Doing nothing to execute command `{}`", self.to_string());
-        let cmd = self.front().unwrap().clone(); // Clone the command to avoid borrowing issues
-        self.pop_front(); // Now you can mutate self
-        let args = self.get_args();
-        println!("Executing command `{}` with args `{:?}`", cmd, args);
-        println!("{:?}", args == ["hola"]);
+    // pub fn execute(&mut self, in_piped: bool, out_piped: bool) -> Child {
+    //     println!("Doing nothing to execute command `{}`", self.to_string());
+    //     let cmd = self.pop_front().unwrap();
+    //     let args = self.get_args();
 
-        let mut child = Command::new("echo") // cmd)
-            .args(["hola"])// args)
-            .spawn()
-            // .args(args.iter().map(|s| s.as_c_str()))
-            // .stdout(Stdio::piped())
-            .expect("Failed to execute command");
-        
+    //     if in_piped {
+    //         let mut child = Command::new(cmd)
+    //             .args(args)
+    //             .stdin(Stdio::piped())
+    //             .spawn()
+    //             .expect("Failed to execute command");
+
+    //         child.wait().expect("Failed to wait on child");
+    //         return child
+    //     } else if out_piped {
+    //         let mut child = Command::new(cmd)
+    //             .args(args)
+    //             .stdout(Stdio::piped())
+    //             .spawn()
+    //             .expect("Failed to execute command");
+
+    //         child.wait().expect("Failed to wait on child");
+    //         return child
+    //     } else {
+    //         let mut child = Command::new(cmd)
+    //             .args(args)
+    //             .spawn()
+    //             .stdout(Stdio::piped())
+    //             .expect("Failed to execute command");
+    //         child.wait().expect("Failed to wait on child");
+    //         return child
+    //     }
+    // }
+    pub fn execute(&mut self, in_piped: Option<Child>, out_piped: bool) -> Child {
+        println!("Doing nothing to execute command `{}`", self.to_string());
+        let cmd = self.pop_front().unwrap();
+        let args = self.get_args();
+
+        let mut command = Command::new(cmd);
+        command.args(args);
+
+        if let Some(mut child) = in_piped {
+            command.stdin(
+                child
+                    .stdout
+                    .take()
+                    .expect("Failed to take stdout from first command"),
+            );
+        }
+
+        if out_piped {
+            command.stdout(Stdio::piped());
+        }
+
+        let mut child = command.spawn().expect("Failed to execute command");
         child.wait().expect("Failed to wait on child");
+        child
     }
 }
 
@@ -166,17 +207,24 @@ impl Pipeline {
     }
 
     pub fn execute(&mut self) {
-        // if built-in {run built in}
-        // else:
-        //    setup pipes
-        
-        // self.pop_front();
-        self.pop_front().unwrap().execute();
-        // hola.wait().expect("Failed to wait on child");
-        self.pop_front().unwrap().execute();
+        if self.commands.is_empty() {
+            return;
+        }
+
+        let mut previous_child = None;
+
+        while let Some(mut command) = self.pop_front() {
+            let out_piped = !self.commands.is_empty();
+            previous_child = Some(command.execute(previous_child, out_piped));
+        }
+
+        if let Some(mut child) = previous_child {
+            if self.should_wait {
+                child.wait().expect("Failed to wait on child");
+            }
+        }
 
         println!("Executing pipeline `{}`", self.to_string());
-
         // let mut child1 = Command::new("echo")
         //     .args(["hola3"])
         //     .stdout(Stdio::piped())
