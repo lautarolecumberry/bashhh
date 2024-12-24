@@ -1,9 +1,5 @@
-use nix::sys::wait::waitpid;
-use nix::unistd::execvp;
-use nix::unistd::fork;
-use nix::unistd::ForkResult;
 use std::collections::VecDeque;
-use std::ffi::CString;
+use std::process::{Child, Command, Stdio};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct SimpleCommand {
@@ -82,15 +78,26 @@ impl SimpleCommand {
         println!();
     }
 
-    pub fn execute(&self) {
-        let command = CString::new("ls").expect("CString::new failed");
+    fn get_args(&self) -> Vec<&str> {
+        self.args.iter().map(|s| s.as_str()).collect()
+    }
 
-        let args = [
-            CString::new("ls").expect("CString::new failed"),
-            CString::new("-l").expect("CString::new failed"),
-        ];
+    pub fn execute(&mut self) {
+        println!("Doing nothing to execute command `{}`", self.to_string());
+        let cmd = self.front().unwrap().clone(); // Clone the command to avoid borrowing issues
+        self.pop_front(); // Now you can mutate self
+        let args = self.get_args();
+        println!("Executing command `{}` with args `{:?}`", cmd, args);
+        println!("{:?}", args == ["hola"]);
 
-        execvp(&command, &args).expect("execvp failed");
+        let mut child = Command::new("echo") // cmd)
+            .args(["hola"])// args)
+            .spawn()
+            // .args(args.iter().map(|s| s.as_c_str()))
+            // .stdout(Stdio::piped())
+            .expect("Failed to execute command");
+        
+        child.wait().expect("Failed to wait on child");
     }
 }
 
@@ -260,24 +267,24 @@ mod simple_command_tests {
 }
 
 pub struct Pipeline {
-    commands: Vec<SimpleCommand>,
+    commands: VecDeque<SimpleCommand>,
     should_wait: bool,
 }
 
 impl Pipeline {
     pub fn new() -> Pipeline {
         Pipeline {
-            commands: Vec::new(),
+            commands: VecDeque::new(),
             should_wait: true,
         }
     }
 
     pub fn push_back(&mut self, command: SimpleCommand) {
-        self.commands.push(command);
+        self.commands.push_back(command);
     }
 
     pub fn pop_front(&mut self) -> Option<SimpleCommand> {
-        return self.commands.pop();
+        return self.commands.pop_front();
     }
 
     pub fn set_wait(&mut self, wait: bool) {
@@ -293,7 +300,7 @@ impl Pipeline {
     }
 
     pub fn front(&self) -> Option<&SimpleCommand> {
-        self.commands.first()
+        self.commands.front()
     }
 
     pub fn get_wait(&self) -> bool {
@@ -323,26 +330,52 @@ impl Pipeline {
         println!();
     }
 
-    pub fn execute(&self) {
+    pub fn execute(&mut self) {
         // if built-in {run built in}
         // else:
         //    setup pipes
+        
+        // self.pop_front();
+        self.pop_front().unwrap().execute();
+        // hola.wait().expect("Failed to wait on child");
+        self.pop_front().unwrap().execute();
 
-        let command = self.front().unwrap().clone();
-        unsafe {
-            match fork().expect("Fork failed") {
-                ForkResult::Child => {
-                    println!("new thread");
-                    command.execute();
-                }
-                ForkResult::Parent { child, .. } => {
-                    println!("old thread");
-                    if self.should_wait {
-                        waitpid(child, None).expect("Waitpid failed");
-                    }
-                }
-            }
-        }
+        println!("Executing pipeline `{}`", self.to_string());
+
+        // let mut child1 = Command::new("echo")
+        //     .args(["hola3"])
+        //     .stdout(Stdio::piped())
+        //     .spawn()
+        //     .expect("Failed to execute command");
+
+        // let mut child2 = Command::new("grep")
+        //     .args(["hola3"])
+        //     .stdin(Stdio::from(
+        //         child1
+        //             .stdout
+        //             .take()
+        //             .expect("Failed to take stdout from first command"),
+        //     ))
+        //     .stdout(Stdio::piped())
+        //     .spawn()
+        //     .expect("Failed to execute second command");
+
+        // let mut child3 = Command::new("grep")
+        //     .args(["hola3"])
+        //     .stdin(Stdio::from(
+        //         child2
+        //             .stdout
+        //             .take()
+        //             .expect("Failed to take stdout from second command"),
+        //     ))
+        //     .spawn()
+        //     .expect("Failed to execute third command");
+
+        // if self.should_wait {
+        //     child1.wait().expect("Failed to wait on child1");
+        //     child2.wait().expect("Failed to wait on child2");
+        //     child3.wait().expect("Failed to wait on child3");
+        // }
     }
 }
 

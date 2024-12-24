@@ -14,9 +14,18 @@ fn main() {
         let command = command.trim_end();
         println!("executing {command} ... ");
         let mut s_cmd = SimpleCommand::new();
-        s_cmd.push_back(command.to_string());
+        s_cmd.push_back(String::from("echo"));
+        s_cmd.push_back(String::from("hola"));
+        let mut s_cmd2 = SimpleCommand::new();
+        s_cmd2.push_back(String::from("grep"));
+        s_cmd2.push_back(String::from("hola"));
+        let mut s_cmd3 = SimpleCommand::new();
+        s_cmd3.push_back(String::from("grep"));
+        s_cmd3.push_back(String::from("hola"));
         let mut pipeline = Pipeline::new();
         pipeline.push_back(s_cmd);
+        pipeline.push_back(s_cmd2);
+        pipeline.push_back(s_cmd3);
         pipeline.execute();
     }
 }
