@@ -1,6 +1,8 @@
+use std::collections::VecDeque;
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct SimpleCommand {
-    args: Vec<String>,
+    args: VecDeque<String>,
     out: String,
     input: String,
 }
@@ -8,18 +10,18 @@ pub struct SimpleCommand {
 impl SimpleCommand {
     pub fn new() -> SimpleCommand {
         SimpleCommand {
-            args: Vec::new(),
+            args: VecDeque::new(),
             out: String::new(),
             input: String::new(),
         }
     }
 
     pub fn push_back(&mut self, arg: String) {
-        self.args.push(arg);
+        self.args.push_back(arg);
     }
 
     pub fn pop_front(&mut self) -> Option<String> {
-        return self.args.pop();
+        return self.args.pop_front();
     }
 
     pub fn set_redir_in(&mut self, input: String) {
@@ -39,7 +41,7 @@ impl SimpleCommand {
     }
 
     pub fn front(&self) -> Option<&String> {
-        self.args.first()
+        self.args.front()
     }
 
     pub fn get_redir_in(&self) -> &String {
@@ -52,16 +54,21 @@ impl SimpleCommand {
 
     pub fn to_string(&self) -> String {
         let mut result = String::new();
-        for arg in &self.args {
+        let len = self.args.len();
+        for (i, arg) in self.args.iter().enumerate() {
             result.push_str(arg);
-            if arg != self.args.last().unwrap() {
+            if i < len - 1 {
                 result.push(' ');
             }
         }
-        result.push_str(" < ");
-        result.push_str(&self.input);
-        result.push_str(" > ");
-        result.push_str(&self.out);
+        if !self.input.is_empty() {
+            result.push_str(" < ");
+            result.push_str(&self.input);
+        }
+        if !self.out.is_empty() {
+            result.push_str(" > ");
+            result.push_str(&self.out);
+        }
         result
     }
 
@@ -75,48 +82,6 @@ impl SimpleCommand {
 mod simple_command_tests {
     use super::*;
 
-    // #[test]
-    // fn test_destroy_null() {
-    //     scommand_destroy (NULL);
-    // }
-
-    // #[test]
-    // fn test_push_back_null() {
-    //     scommand_push_back (NULL, bfromcstr ("123"));
-    // }
-
-    // #[test]
-    // fn test_push_back_argument_null() {
-    //     scmd = scommand_new ();
-    //     scommand_push_back (scmd, NULL);
-    //     scommand_destroy (scmd); scmd = NULL;
-    // }
-
-    // #[test]
-    // fn test_pop_front_null() {
-    //     scommand_push_back (NULL, bfromcstr ("123"));
-    // }
-
-    // #[test]
-    // fn test_pop_front_empty() {
-    //     scommand_push_back (NULL, bfromcstr ("123"));
-    // }
-
-    // #[test]
-    // fn test_set_redir_in_null() {
-    //     scommand_push_back (NULL, bfromcstr ("123"));
-    // }
-
-    // #[test]
-    // fn test_set_redir_out_null() {
-    //     scommand_push_back (NULL, bfromcstr ("123"));
-    // }
-
-    // #[test]
-    // fn test_is_empty_null() {
-    //     scommand_push_back (NULL, bfromcstr ("123"));
-    // }
-
     #[test]
     fn test_length_null() {
         let command = SimpleCommand::new();
@@ -129,37 +94,19 @@ mod simple_command_tests {
         assert!(command.front().is_none());
     }
 
-    // #[test]
-    // fn test_front_empty() {
-    //     scmd = scommand_new();
-    //     scommand_front (scmd);
-    //     scommand_destroy(scmd); scmd = NULL;
-    // }
-
-    // #[test]
-    // fn test_get_redir_in_null() {
-    //     scommand_get_redir_in (NULL);
-    // }
-
-    // #[test]
-    // fn test_get_redir_out_null() {
-    //     scommand_get_redir_out (NULL);
-    // }
-
-    // #[test]
-    // fn test_to_string_null() {
-    //     scommand_to_string (NULL);
-    // }
+    #[test]
+    fn test_front_empty() {
+        let scmd = SimpleCommand::new();
+        assert!(scmd.front().is_none());
+    }
 
     #[test]
     fn test_new_is_empty() {
         let scmd = SimpleCommand::new();
-        // Un comando recién creado debe ser vacío
         assert!(scmd.is_empty());
         assert_eq!(scmd.length(), 0);
     }
 
-    // is_empty sea acorde a lo que agregamos y quitamos
     #[test]
     fn test_adding_emptying() {
         let mut scmd = SimpleCommand::new();
@@ -199,8 +146,11 @@ mod simple_command_tests {
             scmd.push_back(s.clone());
         }
         for s in &strings {
-            assert_eq!(scmd.front().unwrap(), s);
-            scmd.pop_front();
+            let front = scmd.front().unwrap();
+            println!("{} == {}", front, s);
+            assert_eq!(front, s);
+            let popped = scmd.pop_front();
+            println!("{}", popped.unwrap());
         }
     }
 
@@ -258,7 +208,7 @@ mod simple_command_tests {
     #[test]
     fn test_to_string_empty() {
         let scmd = SimpleCommand::new();
-        assert_eq!(scmd.to_string(), " <  > ");
+        assert_eq!(scmd.to_string(), "");
     }
 
     #[test]
@@ -282,12 +232,10 @@ mod simple_command_tests {
                 last_pos = pos;
             } else if i == 255 {
                 let pos = result.find(&strings[i]).unwrap();
-                assert!(pos >= 0);
                 let redir_pos = result.find('<').unwrap();
                 assert!(pos > redir_pos);
             } else {
                 let pos = result.find(&strings[i]).unwrap();
-                assert!(pos >= 0);
                 let redir_pos = result.find('>').unwrap();
                 assert!(pos > redir_pos);
             }
@@ -341,9 +289,10 @@ impl Pipeline {
         if self.commands.is_empty() {
             return result;
         }
-        for command in &self.commands {
+        let last_index = self.commands.len() - 1;
+        for (i, command) in self.commands.iter().enumerate() {
             result.push_str(&command.to_string());
-            if command != self.commands.last().unwrap() {
+            if i < last_index {
                 result.push_str(" | ");
             }
         }
@@ -516,9 +465,6 @@ mod pipeline_tests {
 
     #[test]
     fn test_to_string() {
-        // TODO: the bug here is that if all the commands are equal,
-        // it detects the all the commands as the last one so it
-        // doesn't add the pipe between them.
         let mut pipeline = Pipeline::new();
         for _ in 0..257 {
             let mut cmd = SimpleCommand::new();

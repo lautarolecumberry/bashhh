@@ -7,9 +7,9 @@ What to do:
 1. ✅ hacer el tad
     - ✅ simple command
     - ✅ pipeline
-2. add tests
+2. ✅ add tests
     - ✅ pipeline
-    - 🟡 simple command
+    - ✅ simple command
 3. Execute basic commands
 4. Execute cd
 5. Execute pipes
