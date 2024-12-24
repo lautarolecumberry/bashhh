@@ -1,4 +1,9 @@
+use nix::sys::wait::waitpid;
+use nix::unistd::execvp;
+use nix::unistd::fork;
+use nix::unistd::ForkResult;
 use std::collections::VecDeque;
+use std::ffi::CString;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct SimpleCommand {
@@ -75,6 +80,17 @@ impl SimpleCommand {
     pub fn dump(&self) {
         println!("SimpleCommand `{}`", self.to_string());
         println!();
+    }
+
+    pub fn execute(&self) {
+        let command = CString::new("ls").expect("CString::new failed");
+
+        let args = [
+            CString::new("ls").expect("CString::new failed"),
+            CString::new("-l").expect("CString::new failed"),
+        ];
+
+        execvp(&command, &args).expect("execvp failed");
     }
 }
 
@@ -305,6 +321,28 @@ impl Pipeline {
     pub fn dump(&self) {
         println!("Pipeline `{}`", self.to_string());
         println!();
+    }
+
+    pub fn execute(&self) {
+        // if built-in {run built in}
+        // else:
+        //    setup pipes
+
+        let command = self.front().unwrap().clone();
+        unsafe {
+            match fork().expect("Fork failed") {
+                ForkResult::Child => {
+                    println!("new thread");
+                    command.execute();
+                }
+                ForkResult::Parent { child, .. } => {
+                    println!("old thread");
+                    if self.should_wait {
+                        waitpid(child, None).expect("Waitpid failed");
+                    }
+                }
+            }
+        }
     }
 }
 
