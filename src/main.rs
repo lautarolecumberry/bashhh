@@ -7,25 +7,13 @@ use std::io;
 fn main() {
     loop {
         print!("> ");
-        let mut command = String::new();
+        let mut input = String::new();
         io::stdin()
-            .read_line(&mut command)
+            .read_line(&mut input)
             .expect("Failed to read line");
-        let command = command.trim_end();
-        println!("executing {command} ... ");
-        let mut s_cmd = SimpleCommand::new();
-        s_cmd.push_back(String::from("echo"));
-        s_cmd.push_back(String::from("hola"));
-        let mut s_cmd2 = SimpleCommand::new();
-        s_cmd2.push_back(String::from("grep"));
-        s_cmd2.push_back(String::from("hola"));
-        let mut s_cmd3 = SimpleCommand::new();
-        s_cmd3.push_back(String::from("grep"));
-        s_cmd3.push_back(String::from("hola"));
-        let mut pipeline = Pipeline::new();
-        pipeline.push_back(s_cmd);
-        pipeline.push_back(s_cmd2);
-        pipeline.push_back(s_cmd3);
+        let input = input.trim_end();
+
+        let mut pipeline = Pipeline::parse(input);
         pipeline.execute();
     }
 }

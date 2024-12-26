@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::process::{Child, Command, Stdio};
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct SimpleCommand {
     args: VecDeque<String>,
     out: String,
@@ -37,13 +37,13 @@ impl SimpleCommand {
         self.args.is_empty()
     }
 
-    pub fn length(&self) -> usize {
-        self.args.len()
-    }
+    // pub fn length(&self) -> usize {
+    //     self.args.len()
+    // }
 
-    pub fn front(&self) -> Option<&String> {
-        self.args.front()
-    }
+    // pub fn front(&self) -> Option<&String> {
+    //     self.args.front()
+    // }
 
     pub fn get_redir_in(&self) -> &String {
         &self.input
@@ -73,55 +73,23 @@ impl SimpleCommand {
         result
     }
 
-    pub fn dump(&self) {
-        println!("SimpleCommand `{}`", self.to_string());
-        println!();
-    }
-
     fn get_args(&self) -> Vec<&str> {
         self.args.iter().map(|s| s.as_str()).collect()
     }
 
-    // pub fn execute(&mut self, in_piped: bool, out_piped: bool) -> Child {
-    //     println!("Doing nothing to execute command `{}`", self.to_string());
-    //     let cmd = self.pop_front().unwrap();
-    //     let args = self.get_args();
-
-    //     if in_piped {
-    //         let mut child = Command::new(cmd)
-    //             .args(args)
-    //             .stdin(Stdio::piped())
-    //             .spawn()
-    //             .expect("Failed to execute command");
-
-    //         child.wait().expect("Failed to wait on child");
-    //         return child
-    //     } else if out_piped {
-    //         let mut child = Command::new(cmd)
-    //             .args(args)
-    //             .stdout(Stdio::piped())
-    //             .spawn()
-    //             .expect("Failed to execute command");
-
-    //         child.wait().expect("Failed to wait on child");
-    //         return child
-    //     } else {
-    //         let mut child = Command::new(cmd)
-    //             .args(args)
-    //             .spawn()
-    //             .stdout(Stdio::piped())
-    //             .expect("Failed to execute command");
-    //         child.wait().expect("Failed to wait on child");
-    //         return child
-    //     }
-    // }
-    pub fn execute(&mut self, in_piped: Option<Child>, out_piped: bool) -> Child {
-        println!("Doing nothing to execute command `{}`", self.to_string());
+    pub fn execute(
+        &mut self,
+        in_piped: Option<Child>,
+        out_piped: bool,
+        should_wait: bool,
+    ) -> Child {
         let cmd = self.pop_front().unwrap();
         let args = self.get_args();
 
         let mut command = Command::new(cmd);
         command.args(args);
+
+        // TODO: if in file
 
         if let Some(mut child) = in_piped {
             command.stdin(
@@ -132,13 +100,42 @@ impl SimpleCommand {
             );
         }
 
+        // TODO: if out file
+
         if out_piped {
             command.stdout(Stdio::piped());
         }
 
         let mut child = command.spawn().expect("Failed to execute command");
-        child.wait().expect("Failed to wait on child");
+        if should_wait {
+            child.wait().expect("Failed to wait on child");
+        }
         child
+    }
+
+    pub fn parse(command_str: &str) -> SimpleCommand {
+        let mut command = SimpleCommand::new();
+        let mut parts = command_str.split_whitespace();
+
+        let mut input_set = false;
+        let mut output_set = false;
+
+        while let Some(part) = parts.next() {
+            if part == "<" {
+                if let Some(input_file) = parts.next() {
+                    command.input = input_file.to_string();
+                    input_set = true;
+                }
+            } else if part == ">" {
+                if let Some(output_file) = parts.next() {
+                    command.out = output_file.to_string();
+                    output_set = true;
+                }
+            } else {
+                command.args.push_back(part.to_string());
+            }
+        }
+        command
     }
 }
 
@@ -195,70 +192,53 @@ impl Pipeline {
                 result.push_str(" | ");
             }
         }
-        if !self.should_wait && !self.commands.is_empty() {
+        if !self.get_wait() && !self.commands.is_empty() {
             result.push_str(" &");
         }
         result
     }
 
-    pub fn dump(&self) {
-        println!("Pipeline `{}`", self.to_string());
-        println!();
-    }
-
     pub fn execute(&mut self) {
-        if self.commands.is_empty() {
+        if self.is_empty() {
             return;
         }
 
         let mut previous_child = None;
 
         while let Some(mut command) = self.pop_front() {
-            let out_piped = !self.commands.is_empty();
-            previous_child = Some(command.execute(previous_child, out_piped));
+            let out_piped = !self.is_empty();
+            previous_child = Some(command.execute(previous_child, out_piped, self.get_wait()));
+        }
+    }
+
+    pub fn parse(input: &str) -> Pipeline {
+        let mut pipeline = Pipeline::new();
+
+        let command_strs: Vec<String> = input
+            .split('|')
+            .map(str::trim)
+            .map(|s| s.to_string())
+            .collect();
+
+        let default_command = String::from("");
+        let last_command = command_strs.last().unwrap_or(&default_command);
+
+        if last_command.ends_with("&") {
+            pipeline.should_wait = false;
         }
 
-        if let Some(mut child) = previous_child {
-            if self.should_wait {
-                child.wait().expect("Failed to wait on child");
+        for (i, command_str) in command_strs.iter().enumerate() {
+            let mut command_str = command_str.to_string();
+
+            if i == command_strs.len() - 1 && command_str.ends_with("&") {
+                command_str = command_str.trim_end_matches("&").to_string();
             }
+
+            let command = SimpleCommand::parse(&command_str);
+            pipeline.commands.push_back(command);
         }
 
-        println!("Executing pipeline `{}`", self.to_string());
-        // let mut child1 = Command::new("echo")
-        //     .args(["hola3"])
-        //     .stdout(Stdio::piped())
-        //     .spawn()
-        //     .expect("Failed to execute command");
-
-        // let mut child2 = Command::new("grep")
-        //     .args(["hola3"])
-        //     .stdin(Stdio::from(
-        //         child1
-        //             .stdout
-        //             .take()
-        //             .expect("Failed to take stdout from first command"),
-        //     ))
-        //     .stdout(Stdio::piped())
-        //     .spawn()
-        //     .expect("Failed to execute second command");
-
-        // let mut child3 = Command::new("grep")
-        //     .args(["hola3"])
-        //     .stdin(Stdio::from(
-        //         child2
-        //             .stdout
-        //             .take()
-        //             .expect("Failed to take stdout from second command"),
-        //     ))
-        //     .spawn()
-        //     .expect("Failed to execute third command");
-
-        // if self.should_wait {
-        //     child1.wait().expect("Failed to wait on child1");
-        //     child2.wait().expect("Failed to wait on child2");
-        //     child3.wait().expect("Failed to wait on child3");
-        // }
+        pipeline
     }
 }
 

@@ -10,9 +10,15 @@ What to do:
 2. ✅ add tests
     - ✅ pipeline
     - ✅ simple command
-3. Execute basic commands
-4. Execute cd
-5. Execute pipes
+3. 🟡 Execute basic commands
+    - consider simple command in and out files
+4. ✅ Add parser
+5. Execute cd
+6. 🟢 Execute pipes
+
+BUGS:
+- crashes on empty input
+- fix missing `>`
 
 ```
 cargo run
