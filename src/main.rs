@@ -1,12 +1,12 @@
 mod command;
 
 use command::Pipeline;
-use command::SimpleCommand;
-use std::io;
+use std::io::{self, Write};
 
 fn main() {
     loop {
         print!("> ");
+        io::stdout().flush().expect("Failed to flush stdout");
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)

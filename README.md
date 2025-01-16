@@ -17,8 +17,11 @@ What to do:
 6. 🟢 Execute pipes
 
 BUGS:
-- crashes on empty input
-- fix missing `>`
+- fix < and >
+```
+✗ grep print < src/main.rs 
+println!("> ");
+```
 
 ```
 cargo run

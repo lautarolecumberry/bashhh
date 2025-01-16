@@ -82,54 +82,52 @@ impl SimpleCommand {
         in_piped: Option<Child>,
         out_piped: bool,
         should_wait: bool,
-    ) -> Child {
-        let cmd = self.pop_front().unwrap();
-        let args = self.get_args();
+    ) -> Option<Child> {
+        if let Some(cmd) = self.pop_front() {
+            let args = self.get_args();
 
-        let mut command = Command::new(cmd);
-        command.args(args);
+            let mut command = Command::new(cmd);
+            command.args(args);
 
-        // TODO: if in file
+            // TODO: if in file
 
-        if let Some(mut child) = in_piped {
-            command.stdin(
-                child
-                    .stdout
-                    .take()
-                    .expect("Failed to take stdout from first command"),
-            );
+            if let Some(mut child) = in_piped {
+                command.stdin(
+                    child
+                        .stdout
+                        .take()
+                        .expect("Failed to take stdout from first command"),
+                );
+            }
+
+            // TODO: if out file
+
+            if out_piped {
+                command.stdout(Stdio::piped());
+            }
+
+            let mut child = command.spawn().expect("Failed to execute command");
+            if should_wait {
+                child.wait().expect("Failed to wait on child");
+            }
+            Some(child)
+        } else {
+            None
         }
-
-        // TODO: if out file
-
-        if out_piped {
-            command.stdout(Stdio::piped());
-        }
-
-        let mut child = command.spawn().expect("Failed to execute command");
-        if should_wait {
-            child.wait().expect("Failed to wait on child");
-        }
-        child
     }
 
     pub fn parse(command_str: &str) -> SimpleCommand {
         let mut command = SimpleCommand::new();
         let mut parts = command_str.split_whitespace();
 
-        let mut input_set = false;
-        let mut output_set = false;
-
         while let Some(part) = parts.next() {
             if part == "<" {
                 if let Some(input_file) = parts.next() {
                     command.input = input_file.to_string();
-                    input_set = true;
                 }
             } else if part == ">" {
                 if let Some(output_file) = parts.next() {
                     command.out = output_file.to_string();
-                    output_set = true;
                 }
             } else {
                 command.args.push_back(part.to_string());
@@ -207,7 +205,7 @@ impl Pipeline {
 
         while let Some(mut command) = self.pop_front() {
             let out_piped = !self.is_empty();
-            previous_child = Some(command.execute(previous_child, out_piped, self.get_wait()));
+            previous_child = command.execute(previous_child, out_piped, self.get_wait());
         }
     }
 
