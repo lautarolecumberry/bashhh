@@ -4,6 +4,7 @@ What to do:
 - Start by building a basic shell that reads input from the user, executes simple commands,and handles basic piping or redirection.
 - Expand the functionality to support background jobs, process control (like fg, bg, kill), and more advanced features like command history.
 
+0.1.0
 1. ✅ hacer el tad
     - ✅ simple command
     - ✅ pipeline
@@ -15,6 +16,7 @@ What to do:
 4. ✅ Add parser
 5. ✅ Execute cd and exit
 6. ✅ Execute pipes
+0.2.0
 7. Make up key work
 8. Make tab work
 9. Keep colors
