@@ -2,16 +2,17 @@ use std::collections::VecDeque;
 use std::fs::File;
 use std::process::{Child, Command, Stdio};
 
-#[derive(PartialEq, Clone)]
 pub struct SimpleCommand {
+    raw_command: Command,
     args: VecDeque<String>,
     out: String,
     input: String,
 }
 
 impl SimpleCommand {
-    pub fn new() -> SimpleCommand {
+    pub fn new(cmd: &str) -> SimpleCommand {
         SimpleCommand {
+            raw_command: Command::new(cmd),
             args: VecDeque::new(),
             out: String::new(),
             input: String::new(),
@@ -22,40 +23,32 @@ impl SimpleCommand {
         self.args.push_back(arg);
     }
 
-    fn pop_front(&mut self) -> Option<String> {
-        return self.args.pop_front();
+    fn set_args(&mut self) {
+        let args: Vec<&str> = self.args.iter().map(|s| s.as_str()).collect();
+        self.raw_command.args(args);
     }
 
-    fn set_redir_in(&mut self, input: String) {
-        self.input = input;
+    fn set_in_pipe(&mut self, in_piped: Option<Child>) {
+        if let Some(mut child) = in_piped {
+            self.raw_command.stdin(
+                child
+                    .stdout
+                    .take()
+                    .expect("Failed to take stdout from first command"),
+            );
+        } else if !self.input.is_empty() {
+            let input_file = File::open(self.input.clone()).expect("Failed to open input file");
+            self.raw_command.stdin(Stdio::from(input_file));
+        }
     }
 
-    fn set_redir_out(&mut self, out: String) {
-        self.out = out;
-    }
-
-    // pub fn to_string(&self) -> String {
-    //     let mut result = String::new();
-    //     let len = self.args.len();
-    //     for (i, arg) in self.args.iter().enumerate() {
-    //         result.push_str(arg);
-    //         if i < len - 1 {
-    //             result.push(' ');
-    //         }
-    //     }
-    //     if !self.input.is_empty() {
-    //         result.push_str(" < ");
-    //         result.push_str(&self.input);
-    //     }
-    //     if !self.out.is_empty() {
-    //         result.push_str(" > ");
-    //         result.push_str(&self.out);
-    //     }
-    //     result
-    // }
-
-    fn get_args(&self) -> Vec<&str> {
-        self.args.iter().map(|s| s.as_str()).collect()
+    fn set_out_pipe(&mut self, out_piped: bool) {
+        if out_piped {
+            self.raw_command.stdout(Stdio::piped());
+        } else if !self.out.is_empty() {
+            let output_file = File::create(self.out.clone()).expect("Failed to create output file");
+            self.raw_command.stdout(Stdio::from(output_file));
+        }
     }
 
     pub fn execute(
@@ -64,54 +57,30 @@ impl SimpleCommand {
         out_piped: bool,
         should_wait: bool,
     ) -> Option<Child> {
-        if let Some(cmd) = self.pop_front() {
-            let args = self.get_args();
+        self.set_args();
+        self.set_in_pipe(in_piped);
+        self.set_out_pipe(out_piped);
 
-            let mut command = Command::new(cmd);
-            command.args(args);
-
-            if let Some(mut child) = in_piped {
-                command.stdin(
-                    child
-                        .stdout
-                        .take()
-                        .expect("Failed to take stdout from first command"),
-                );
-            } else if !self.input.is_empty() {
-                let input_file = File::open(self.input.clone()).expect("Failed to open input file");
-                command.stdin(Stdio::from(input_file));
-            }
-
-            if out_piped {
-                command.stdout(Stdio::piped());
-            } else if !self.out.is_empty() {
-                let output_file =
-                    File::create(self.out.clone()).expect("Failed to create output file");
-                command.stdout(Stdio::from(output_file));
-            }
-
-            let mut child = command.spawn().expect("Failed to execute command");
-            if should_wait {
-                child.wait().expect("Failed to wait on child");
-            }
-            Some(child)
-        } else {
-            None
+        let mut child = self.raw_command.spawn().expect("Failed to execute command");
+        if should_wait {
+            child.wait().expect("Failed to wait on child");
         }
+        Some(child)
     }
 
     pub fn parse(command_str: &str) -> SimpleCommand {
-        let mut command = SimpleCommand::new();
         let mut parts = command_str.split_whitespace();
+        let cmd = parts.next().expect("Command cannot be empty");
+        let mut command = SimpleCommand::new(cmd);
 
         while let Some(part) = parts.next() {
             if part == "<" {
                 if let Some(input_file) = parts.next() {
-                    command.set_redir_in(input_file.to_string());
+                    command.input = input_file.to_string();
                 }
             } else if part == ">" {
                 if let Some(output_file) = parts.next() {
-                    command.set_redir_out(output_file.to_string());
+                    command.out = output_file.to_string();
                 }
             } else {
                 command.push_back(part.to_string());
@@ -142,10 +111,6 @@ impl Pipeline {
         return self.commands.pop_front();
     }
 
-    fn set_wait(&mut self, wait: bool) {
-        self.should_wait = wait;
-    }
-
     fn is_empty(&self) -> bool {
         self.commands.is_empty()
     }
@@ -174,7 +139,6 @@ impl Pipeline {
         }
 
         let mut previous_child = None;
-
         while let Some(mut command) = self.pop_front() {
             let out_piped = !self.is_empty();
             previous_child = command.execute(previous_child, out_piped, self.should_wait);
@@ -183,7 +147,6 @@ impl Pipeline {
 
     pub fn parse(input: &str) -> Pipeline {
         let mut pipeline = Pipeline::new();
-
         let command_strs: Vec<String> = input
             .split('|')
             .map(str::trim)
@@ -194,7 +157,7 @@ impl Pipeline {
         let last_command = command_strs.last().unwrap_or(&default_command);
 
         if last_command.ends_with("&") {
-            pipeline.set_wait(false);
+            pipeline.should_wait = false;
         }
 
         for (i, command_str) in command_strs.iter().enumerate() {
@@ -204,8 +167,10 @@ impl Pipeline {
                 command_str = command_str.trim_end_matches("&").to_string();
             }
 
-            let command = SimpleCommand::parse(&command_str);
-            pipeline.push_back(command);
+            if !command_str.is_empty() {
+                let command = SimpleCommand::parse(&command_str);
+                pipeline.push_back(command);
+            }
         }
 
         pipeline
