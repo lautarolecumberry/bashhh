@@ -10,18 +10,24 @@ What to do:
 2. ✅ add tests
     - ✅ pipeline
     - ✅ simple command
-3. 🟡 Execute basic commands
-    - consider simple command in and out files
+3. ✅ Execute basic commands
+    - ✅ simple command in and out files
 4. ✅ Add parser
 5. Execute cd
-6. 🟢 Execute pipes
+6. ✅ Execute pipes
+7. Make up key work
+8. Make tab work
+9. Keep colors
+10. Autocomplete?
 
-BUGS:
-- fix < and >
+## Tests
+
 ```
 ✗ grep print < src/main.rs 
 println!("> ");
 ```
+
+## How to run
 
 ```
 cargo run

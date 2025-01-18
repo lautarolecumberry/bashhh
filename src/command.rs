@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::fs::File;
 use std::process::{Child, Command, Stdio};
 
 #[derive(PartialEq, Clone)]
@@ -89,8 +90,6 @@ impl SimpleCommand {
             let mut command = Command::new(cmd);
             command.args(args);
 
-            // TODO: if in file
-
             if let Some(mut child) = in_piped {
                 command.stdin(
                     child
@@ -98,12 +97,17 @@ impl SimpleCommand {
                         .take()
                         .expect("Failed to take stdout from first command"),
                 );
+            } else if !self.input.is_empty() {
+                let input_file = File::open(self.input.clone()).expect("Failed to open input file");
+                command.stdin(Stdio::from(input_file));
             }
-
-            // TODO: if out file
 
             if out_piped {
                 command.stdout(Stdio::piped());
+            } else if !self.out.is_empty() {
+                let output_file =
+                    File::create(self.out.clone()).expect("Failed to create output file");
+                command.stdout(Stdio::from(output_file));
             }
 
             let mut child = command.spawn().expect("Failed to execute command");
