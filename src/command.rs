@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::env;
 use std::fs::File;
 use std::process::{Child, Command, Stdio};
 
@@ -21,6 +22,19 @@ impl SimpleCommand {
 
     fn push_back(&mut self, arg: String) {
         self.args.push_back(arg);
+    }
+
+    fn handle_builtins(&self) -> Option<()> {
+        if self.raw_command.get_program() == "cd" {
+            if let Some(dir) = self.args.front() {
+                if let Err(e) = env::set_current_dir(dir) {
+                    eprintln!("cd: {}", e);
+                }
+            }
+        } else if self.raw_command.get_program() == "exit" {
+            std::process::exit(0);
+        }
+        None
     }
 
     fn set_args(&mut self) {
@@ -57,6 +71,9 @@ impl SimpleCommand {
         out_piped: bool,
         should_wait: bool,
     ) -> Option<Child> {
+        if self.handle_builtins().is_some() {
+            return None;
+        }
         self.set_args();
         self.set_in_pipe(in_piped);
         self.set_out_pipe(out_piped);

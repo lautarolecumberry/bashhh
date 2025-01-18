@@ -13,7 +13,7 @@ What to do:
 3. ✅ Execute basic commands
     - ✅ simple command in and out files
 4. ✅ Add parser
-5. Execute cd
+5. ✅ Execute cd and exit
 6. ✅ Execute pipes
 7. Make up key work
 8. Make tab work
