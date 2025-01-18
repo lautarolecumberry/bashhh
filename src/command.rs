@@ -18,61 +18,41 @@ impl SimpleCommand {
         }
     }
 
-    pub fn push_back(&mut self, arg: String) {
+    fn push_back(&mut self, arg: String) {
         self.args.push_back(arg);
     }
 
-    pub fn pop_front(&mut self) -> Option<String> {
+    fn pop_front(&mut self) -> Option<String> {
         return self.args.pop_front();
     }
 
-    pub fn set_redir_in(&mut self, input: String) {
+    fn set_redir_in(&mut self, input: String) {
         self.input = input;
     }
 
-    pub fn set_redir_out(&mut self, out: String) {
+    fn set_redir_out(&mut self, out: String) {
         self.out = out;
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.args.is_empty()
-    }
-
-    // pub fn length(&self) -> usize {
-    //     self.args.len()
+    // pub fn to_string(&self) -> String {
+    //     let mut result = String::new();
+    //     let len = self.args.len();
+    //     for (i, arg) in self.args.iter().enumerate() {
+    //         result.push_str(arg);
+    //         if i < len - 1 {
+    //             result.push(' ');
+    //         }
+    //     }
+    //     if !self.input.is_empty() {
+    //         result.push_str(" < ");
+    //         result.push_str(&self.input);
+    //     }
+    //     if !self.out.is_empty() {
+    //         result.push_str(" > ");
+    //         result.push_str(&self.out);
+    //     }
+    //     result
     // }
-
-    // pub fn front(&self) -> Option<&String> {
-    //     self.args.front()
-    // }
-
-    pub fn get_redir_in(&self) -> &String {
-        &self.input
-    }
-
-    pub fn get_redir_out(&self) -> &String {
-        &self.out
-    }
-
-    pub fn to_string(&self) -> String {
-        let mut result = String::new();
-        let len = self.args.len();
-        for (i, arg) in self.args.iter().enumerate() {
-            result.push_str(arg);
-            if i < len - 1 {
-                result.push(' ');
-            }
-        }
-        if !self.input.is_empty() {
-            result.push_str(" < ");
-            result.push_str(&self.input);
-        }
-        if !self.out.is_empty() {
-            result.push_str(" > ");
-            result.push_str(&self.out);
-        }
-        result
-    }
 
     fn get_args(&self) -> Vec<&str> {
         self.args.iter().map(|s| s.as_str()).collect()
@@ -127,14 +107,14 @@ impl SimpleCommand {
         while let Some(part) = parts.next() {
             if part == "<" {
                 if let Some(input_file) = parts.next() {
-                    command.input = input_file.to_string();
+                    command.set_redir_in(input_file.to_string());
                 }
             } else if part == ">" {
                 if let Some(output_file) = parts.next() {
-                    command.out = output_file.to_string();
+                    command.set_redir_out(output_file.to_string());
                 }
             } else {
-                command.args.push_back(part.to_string());
+                command.push_back(part.to_string());
             }
         }
         command
@@ -154,51 +134,39 @@ impl Pipeline {
         }
     }
 
-    pub fn push_back(&mut self, command: SimpleCommand) {
+    fn push_back(&mut self, command: SimpleCommand) {
         self.commands.push_back(command);
     }
 
-    pub fn pop_front(&mut self) -> Option<SimpleCommand> {
+    fn pop_front(&mut self) -> Option<SimpleCommand> {
         return self.commands.pop_front();
     }
 
-    pub fn set_wait(&mut self, wait: bool) {
+    fn set_wait(&mut self, wait: bool) {
         self.should_wait = wait;
     }
 
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.commands.is_empty()
     }
 
-    pub fn length(&self) -> usize {
-        self.commands.len()
-    }
-
-    pub fn front(&self) -> Option<&SimpleCommand> {
-        self.commands.front()
-    }
-
-    pub fn get_wait(&self) -> bool {
-        self.should_wait
-    }
-
-    pub fn to_string(&self) -> String {
-        let mut result = String::new();
-        if self.commands.is_empty() {
-            return result;
-        }
-        let last_index = self.commands.len() - 1;
-        for (i, command) in self.commands.iter().enumerate() {
-            result.push_str(&command.to_string());
-            if i < last_index {
-                result.push_str(" | ");
-            }
-        }
-        if !self.get_wait() && !self.commands.is_empty() {
-            result.push_str(" &");
-        }
-        result
-    }
+    // pub fn to_string(&self) -> String {
+    //     let mut result = String::new();
+    //     if self.is_empty() {
+    //         return result;
+    //     }
+    //     let last_index = self.commands.len() - 1;
+    //     for (i, command) in self.commands.iter().enumerate() {
+    //         result.push_str(&command.to_string());
+    //         if i < last_index {
+    //             result.push_str(" | ");
+    //         }
+    //     }
+    //     if !self.should_wait && !self.is_empty() {
+    //         result.push_str(" &");
+    //     }
+    //     result
+    // }
 
     pub fn execute(&mut self) {
         if self.is_empty() {
@@ -209,7 +177,7 @@ impl Pipeline {
 
         while let Some(mut command) = self.pop_front() {
             let out_piped = !self.is_empty();
-            previous_child = command.execute(previous_child, out_piped, self.get_wait());
+            previous_child = command.execute(previous_child, out_piped, self.should_wait);
         }
     }
 
@@ -226,7 +194,7 @@ impl Pipeline {
         let last_command = command_strs.last().unwrap_or(&default_command);
 
         if last_command.ends_with("&") {
-            pipeline.should_wait = false;
+            pipeline.set_wait(false);
         }
 
         for (i, command_str) in command_strs.iter().enumerate() {
@@ -237,7 +205,7 @@ impl Pipeline {
             }
 
             let command = SimpleCommand::parse(&command_str);
-            pipeline.commands.push_back(command);
+            pipeline.push_back(command);
         }
 
         pipeline
