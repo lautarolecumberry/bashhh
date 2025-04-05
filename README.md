@@ -1,24 +1,16 @@
-# shell
+# bashhh
 
-What to do:
-- Start by building a basic shell that reads input from the user, executes simple commands,and handles basic piping or redirection.
-- Expand the functionality to support background jobs, process control (like fg, bg, kill), and more advanced features like command history.
+A quite shell written in Rust, shhh!
 
-1. ✅ hacer el tad
-    - ✅ simple command
-    - ✅ pipeline
-2. ✅ add tests
-    - ✅ pipeline
-    - ✅ simple command
-3. ✅ Execute basic commands
-    - ✅ simple command in and out files
-4. ✅ Add parser
-5. ✅ Execute cd and exit
-6. ✅ Execute pipes
-7. Make up key work
-8. Make tab work
-9. Keep colors
-10. Autocomplete?
+## Development
+
+First, make sure you have [Rust](https://www.rust-lang.org/tools/install) installed. Then, you can build and run the project with the following commands:
+
+```
+cargo run
+cargo test
+cargo fmt
+```
 
 ## Tests
 
@@ -27,10 +19,25 @@ What to do:
 println!("> ");
 ```
 
-## How to run
+## Roadmap
 
-```
-cargo run
-cargo test
-cargo fmt
-```
+### 🚧 0.2.0
+
+- Implement "Up" key history functionality  
+- Implement tab completion  
+- Maintain color support  
+- Add autocompletion (TBD)
+
+### ✅ 0.1.0
+
+- Implement data structures  
+    - Simple command structures  
+    - Pipeline structures  
+- Add tests  
+    - Test pipelines  
+    - Test simple commands  
+- Execute basic commands  
+    - Handle simple commands with input/output files  
+- Add command parser  
+- Implement `cd` and `exit` commands  
+- Support pipes execution  
