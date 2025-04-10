@@ -1,6 +1,6 @@
 # bashhh
 
-A quite shell written in Rust, shhh!
+A quiet shell written in Rust, shhh!
 
 ## Development
 
