@@ -4,4 +4,4 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-rustyline = "11.0"
+rustyline = { version = "11.0.0", features = ["with-sqlite-history"] }

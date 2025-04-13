@@ -1,36 +1,17 @@
 mod command;
+mod utils;
 
 use command::Pipeline;
-use rustyline::history::DefaultHistory;
-use rustyline::{Config, Editor};
+use rustyline::{Config, Editor, Result};
+use utils::get_history_path;
 
-fn main() {
-    let config = Config::builder().build();
-    let mut rl = Editor::<(), DefaultHistory>::with_config(config).unwrap();
-
+fn main() -> Result<()> {
+    let config = Config::builder().auto_add_history(true).build();
+    let history = rustyline::sqlite_history::SQLiteHistory::open(config, &get_history_path())?;
+    let mut rl: Editor<(), _> = Editor::with_history(config, history)?;
     loop {
-        let readline = rl.readline("> ");
-        match readline {
-            Ok(input) => {
-                let input = input.trim_end().to_string();
-                if !input.is_empty() {
-                    rl.add_history_entry(&input).unwrap();
-                }
-                let mut pipeline = Pipeline::parse(&input);
-                pipeline.execute();
-            }
-            Err(rustyline::error::ReadlineError::Interrupted) => {
-                // TODO: Handle Ctrl-C
-                break;
-            }
-            Err(rustyline::error::ReadlineError::Eof) => {
-                // TODO: Handle Ctrl-D
-                break;
-            }
-            Err(err) => {
-                println!("Error: {:?}", err);
-                break;
-            }
-        }
+        let input = rl.readline("> ")?;
+        let mut pipeline = Pipeline::parse(&input);
+        pipeline.execute();
     }
 }
