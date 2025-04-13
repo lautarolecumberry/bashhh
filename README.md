@@ -29,10 +29,29 @@ What to do:
 println!("> ");
 ```
 
-## How to run
+## Roadmap
 
-```
-cargo run
-cargo test
-cargo fmt
-```
+### 🚧 0.2.0
+
+- 🟢 Implement "Up" key history functionality  
+- Implement tab completion  
+- Maintain color support  
+- Add autocompletion (TBD)
+
+#### Bugfix
+- `cd` command has an error `/usr/bin/cd: line 4: cd: src: No such file or directory`.
+- Crash when missing command.
+
+### ✅ 0.1.0
+
+- Implement data structures  
+    - Simple command structures  
+    - Pipeline structures  
+- Add tests  
+    - Test pipelines  
+    - Test simple commands  
+- Execute basic commands  
+    - Handle simple commands with input/output files  
+- Add command parser  
+- Implement `cd` and `exit` commands  
+- Support pipes execution  

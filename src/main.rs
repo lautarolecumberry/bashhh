@@ -1,19 +1,36 @@
 mod command;
 
 use command::Pipeline;
-use std::io::{self, Write};
+use rustyline::history::DefaultHistory;
+use rustyline::{Config, Editor};
 
 fn main() {
-    loop {
-        print!("> ");
-        io::stdout().flush().expect("Failed to flush stdout");
-        let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read line");
-        let input = input.trim_end();
+    let config = Config::builder().build();
+    let mut rl = Editor::<(), DefaultHistory>::with_config(config).unwrap();
 
-        let mut pipeline = Pipeline::parse(input);
-        pipeline.execute();
+    loop {
+        let readline = rl.readline("> ");
+        match readline {
+            Ok(input) => {
+                let input = input.trim_end().to_string();
+                if !input.is_empty() {
+                    rl.add_history_entry(&input).unwrap();
+                }
+                let mut pipeline = Pipeline::parse(&input);
+                pipeline.execute();
+            }
+            Err(rustyline::error::ReadlineError::Interrupted) => {
+                // TODO: Handle Ctrl-C
+                break;
+            }
+            Err(rustyline::error::ReadlineError::Eof) => {
+                // TODO: Handle Ctrl-D
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
+        }
     }
 }
