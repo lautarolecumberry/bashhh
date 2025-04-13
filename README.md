@@ -29,10 +29,10 @@ println!("> ");
 - Add autocompletion (TBD)
 
 #### Bugs
-| Description | Error message | Status |
+| Status | Description | Error message |
 |-------------|---------------|--------|
-| `cd` has an error | `/usr/bin/cd: line 4: cd: src: No such file or directory` | 🪾 |
-| Crash when command does not exist | `Failed to execute command: Os { code: 2, kind: NotFound, message: "No such file or directory" }` | 🪾 |
+| 🪾     | `cd` has an error | `/usr/bin/cd: line 4: cd: src: No such file or directory` |
+| 🪾     | Crash when command does not exist | `Failed to execute command: Os { code: 2, kind: NotFound, message: "No such file or directory" }` |
 
 ### ✅ 0.1.0
 
