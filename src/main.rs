@@ -1,19 +1,21 @@
 mod command;
+mod completer;
+mod utils;
 
 use command::Pipeline;
-use std::io::{self, Write};
+use completer::FilenameCompleter;
+use rustyline::{Config, Editor, Result};
+use utils::get_history_path;
 
-fn main() {
+fn main() -> Result<()> {
+    let config = Config::builder().auto_add_history(true).build();
+    let history = rustyline::sqlite_history::SQLiteHistory::open(config, &get_history_path())?;
+    let mut rl: Editor<FilenameCompleter, _> = Editor::with_history(config, history)?;
+    rl.set_helper(Some(FilenameCompleter));
+
     loop {
-        print!("> ");
-        io::stdout().flush().expect("Failed to flush stdout");
-        let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read line");
-        let input = input.trim_end();
-
-        let mut pipeline = Pipeline::parse(input);
+        let input = rl.readline("> ")?;
+        let mut pipeline = Pipeline::parse(&input);
         pipeline.execute();
     }
 }
